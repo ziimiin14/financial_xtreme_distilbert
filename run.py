@@ -4,7 +4,7 @@ import os
 import torch
 import pandas as pd
 from datasets import load_metric,load_dataset
-from sklearn.metrics import confusion_matrix, classification_report,roc_auc_score
+from sklearn.metrics import confusion_matrix, classification_report,roc_curve,auc
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from transformers import get_scheduler
@@ -71,6 +71,14 @@ def eval():
     end = time.time()
     total_time = end-start
     test_acc,test_loss = metric.compute()['accuracy'],np.mean(losses)
+    prob = logits.cpu().detach().numpy()
+
+    fp,tp,th = roc_curve(y_true,prob[:,0],pos_label=0)
+    fp1,tp1,th1 = roc_curve(y_true,prob[:,1],pos_label=1)
+    fp2,tp2,th2 = roc_curve(y_true,prob[:,2],pos_label=2)
+    area_uc = round(auc(fp,tp),3)
+    area_uc1 = round(auc(fp1,tp1),3)
+    area_uc2= round(auc(fp2,tp2),3)
 
     print('\n')
     print(f'Test Accurary: {test_acc}, Test Loss: {test_loss}')
@@ -78,6 +86,8 @@ def eval():
     print('Confusion Matrix:\n', confusion_matrix(y_true,y_pred))
     print('\n')
     print('Classification Report:\n', classification_report(y_true,y_pred,target_names=['Neg','Neu','Pos']))
+    print('\n')
+    print(f'Neg AUC: {area_uc}, Neu AUC: {area_uc1}, Pos AUC: {area_uc2}')
     print('\n')
     print(f'Total time used: {total_time}\nSamples/Sec for {device}: {small_test_dataset.num_rows/total_time}') 
 
