@@ -14,8 +14,6 @@ def run():
     # Declare variable for chromedriver
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
-    # options.add_argument('--no-sandbox')
-    # options.add_argument('--disable-dev-shm-usage')
     driver = webdriver.Chrome('chromedriver',options=options)
 
     # Declare variable for selenium scraping
@@ -50,6 +48,7 @@ def run():
 
     final_headlines = []
 
+    # Check whether it's a legit headline for that news. Video/Club/Pro news are all being removed.
     while headlines:
       temp = headlines.popleft()
 
@@ -65,6 +64,7 @@ def run():
       title.append(x['title'])
       href.append(x['href'])
 
+    # Declare a dataframe
     df = pd.DataFrame({'Symbol':tc,'Mention':mention,'title':title,'link':href})
 
     text_list = []
@@ -76,6 +76,7 @@ def run():
       soup_news = BeautifulSoup(driver.page_source,'html.parser')
       keyPoint = soup_news.find_all('div',attrs={'data-test':'keyPoints-1'})
 
+      # If there is no keypoints to be concatenated into sentence
       if not keyPoint:
         body = soup_news.find_all('div',attrs={'data-module':'ArticleBody'})
         group = body[0].find_all('div',attrs={'class':'group'})
@@ -88,12 +89,15 @@ def run():
         text = ''
         count = 0
 
+        # For each paragraph, apply regex filter to find the specific companies mentioned and concatenate the paragraph and next paragraph into sentence
         for p in paragraphs:
           if filter.search(p.text):
             text += p.text.strip()
             count += 1
           if count == 2:
             break
+
+        # If there is no specific companies mentioned in paragraphs. Just choose 1st and 2nd paragraphs and concatenate into sentence
         if not text:
           if len(paragraphs) > 1:
             text = paragraphs[0].text.strip() + paragraphs[1].text.strip()
@@ -102,6 +106,7 @@ def run():
 
         text_list.append(text)
 
+      # Concatenate all keyspoint into sentence
       else:
         li = keyPoint[0].find_all('li')
         text = ''
@@ -110,6 +115,8 @@ def run():
         text_list.append(text)
 
     df['sentence'] = text_list
+
+    # Apply regex for sentence to remove \xa0 symbol
     f = re.compile(f'\xa0')
     df['sentence'] = df['sentence'].apply(process,args=(f,))
     driver.quit()
